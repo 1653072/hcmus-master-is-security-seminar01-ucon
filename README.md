@@ -372,7 +372,16 @@ backend/static/ads/
 
 > All Blender Foundation films above are Creative Commons licensed and free to use.
 
-### 3. Start all services
+### 3. Install frontend libraries
+
+```bash
+cd frontend && npm install
+cd ..
+```
+
+This generates `package-lock.json`, which is required by `npm ci` inside the Docker build.
+
+### 4. Start all services
 
 ```bash
 docker compose up --build
@@ -383,7 +392,7 @@ Services:
 - Backend API: http://localhost:8080
 - PostgreSQL: localhost:5432
 
-### 4. Verify
+### 5. Verify
 
 ```bash
 # Check backend health
@@ -393,7 +402,7 @@ curl http://localhost:8080/api/movies
 docker exec ucon_postgres psql -U ucon -d ucon_db -c "SELECT username, role, account_type FROM users;"
 ```
 
-### 5. Development (without Docker)
+### 6. Development (without Docker)
 
 **Backend:**
 ```bash
