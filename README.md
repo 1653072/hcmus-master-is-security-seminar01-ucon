@@ -547,12 +547,11 @@ Services:
 ### 5. Verify
 
 ```bash
-# Check backend health
-curl http://localhost:8080/api/movies
-
 # Check database
 docker exec ucon_postgres psql -U ucon -d ucon_db -c "SELECT username, role, account_type FROM users;"
 ```
+
+
 
 ### 6. Stop and clean up
 
@@ -567,6 +566,8 @@ To also wipe the database volume and start fresh next time:
 ```bash
 docker compose down -v
 ```
+
+
 
 ### 7. Development (without Docker)
 

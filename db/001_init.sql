@@ -197,11 +197,10 @@ CREATE INDEX idx_movies_created_at            ON movies(created_at DESC);
 -- =============================================================================
 -- Demo passwords: all users use "Password123!"
 -- BCrypt hash below is for "Password123!" with cost=10
--- Generated via: echo -n "Password123!" | htpasswd -bnBC 10 "" | tr -d ':\n' | sed 's/$2y/$2a/'
 
 DO $$
 DECLARE
-    hash TEXT := '$2a$10$9TWA2gL8k7bRYwUaWMgFZuDfOA5bUxVWn/daSFDrON2/OuHNYR8LC';
+    hash TEXT := '$2a$10$UD/dWW5NHMnj8h0Y4le2Ke2hAIBggUGEoWaAvaTU0ciErTakVxKqu';
 BEGIN
 
 -- Users

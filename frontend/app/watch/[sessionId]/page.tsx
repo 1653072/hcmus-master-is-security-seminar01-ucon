@@ -20,7 +20,8 @@ export default function WatchPage() {
   const sessionId = params.sessionId as string
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
-  const videoSrc = `${API_URL}/api/stream/${sessionId}`
+  const token = getToken()
+  const videoSrc = `${API_URL}/api/stream/${sessionId}?token=${token}`
 
   const closeSession = useCallback(async () => {
     sseRef.current?.close()

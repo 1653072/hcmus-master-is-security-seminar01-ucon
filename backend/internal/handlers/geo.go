@@ -28,7 +28,6 @@ func SaveUserLocation(c *gin.Context) {
 
 	countryCode, err := ucon.FetchCountryCode(req.Latitude, req.Longitude)
 	if err != nil {
-		// Store with unknown country code but don't fail
 		countryCode = "XX"
 	}
 

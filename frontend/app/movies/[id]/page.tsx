@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { api, type Movie, type User, type RentalWithMovie } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
+import { captureAndSendGeo } from '@/lib/geo'
 import Navbar from '@/components/Navbar'
 import { useRouter, useParams } from 'next/navigation'
 
@@ -21,6 +22,7 @@ export default function MovieDetailPage() {
       const u = await getCurrentUser()
       if (!u) { router.push('/login'); return }
       setUser(u)
+      captureAndSendGeo() // ensure location is up to date for preC0
       const m = await api.movies.get(movieId).catch(() => null)
       setMovie(m)
       if (u.role === 'user' && u.account_type === 'basic') {

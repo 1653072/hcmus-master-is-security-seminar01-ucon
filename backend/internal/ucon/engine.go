@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -374,56 +374,47 @@ func OnA3_WriteAuditLog(ctx context.Context, db *pgxpool.Pool, adminID uuid.UUID
 
 // ── Geo location helpers ──────────────────────────────────────────────────────
 
-// NominatimResponse is the response shape from OpenStreetMap Nominatim.
-type NominatimResponse struct {
-	Address struct {
-		CountryCode string `json:"country_code"`
-	} `json:"address"`
-	Error string `json:"error"`
+// BigDataCloudResponse is the response shape from api-bdc.io reverse-geocode.
+// Nominatim (nominatim.openstreetmap.org) is served by Fastly CDN and blocks
+// Go's crypto/tls via JA3 fingerprinting; BigDataCloud uses a different CDN
+// and is reachable from both the host and Docker containers in this environment.
+type BigDataCloudResponse struct {
+	CountryCode string `json:"countryCode"`
 }
 
-// FetchCountryCode calls Nominatim and returns an uppercase ISO 3166-1 alpha-2 code.
+// FetchCountryCode reverse-geocodes lat/lon to an ISO 3166-1 alpha-2 country
+// code using the BigDataCloud free reverse-geocode API (no API key required).
 func FetchCountryCode(lat, lon float64) (string, error) {
 	apiURL := fmt.Sprintf(
-		"https://nominatim.openstreetmap.org/reverse?lat=%f&lon=%f&format=json",
+		"https://api-bdc.io/data/reverse-geocode-client?latitude=%f&longitude=%f&localityLanguage=en",
 		lat, lon,
 	)
-	_, err := url.Parse(apiURL)
-	if err != nil {
-		return "XX", nil
-	}
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, apiURL, nil)
 	if err != nil {
-		return "XX", nil
+		return "XX", fmt.Errorf("failed to build geocode request: %w", err)
 	}
 	req.Header.Set("User-Agent", "ucon-movie-platform/1.0")
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 8 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "XX", fmt.Errorf("nominatim request failed: %w", err)
+		return "XX", fmt.Errorf("geocode request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	var nr NominatimResponse
-	if err := json.NewDecoder(resp.Body).Decode(&nr); err != nil {
-		return "XX", nil
+	if resp.StatusCode != http.StatusOK {
+		return "XX", fmt.Errorf("geocode API returned status %d", resp.StatusCode)
 	}
 
-	code := nr.Address.CountryCode
+	var r BigDataCloudResponse
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return "XX", fmt.Errorf("failed to decode geocode response: %w", err)
+	}
+
+	code := strings.ToUpper(strings.TrimSpace(r.CountryCode))
 	if len(code) != 2 {
-		return "XX", nil
+		return "XX", fmt.Errorf("unexpected country code %q from geocode API", code)
 	}
-	// Convert to uppercase
-	result := make([]byte, 2)
-	for i := 0; i < 2; i++ {
-		ch := code[i]
-		if ch >= 'a' && ch <= 'z' {
-			result[i] = ch - 32
-		} else {
-			result[i] = ch
-		}
-	}
-	return string(result), nil
+	return code, nil
 }

@@ -23,7 +23,7 @@ export default function AdPlayerPage() {
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
   const token = getToken()
-  const adStreamUrl = `${API_URL}/api/ads/${adId}/stream`
+  const adStreamUrl = `${API_URL}/api/ads/${adId}/stream?token=${token}`
 
   const startTimer = () => {
     if (intervalRef.current) return
