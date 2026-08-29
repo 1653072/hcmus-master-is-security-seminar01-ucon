@@ -11,9 +11,20 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/ucon-movie/backend/internal/models"
 )
+
+// DBTX is satisfied by both *pgxpool.Pool and pgx.Tx, so policy functions that
+// must run atomically together (e.g. preB1 payment + preA1 attribute update)
+// can be called with a transaction while everyday callers keep using the pool.
+type DBTX interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
 
 // ── Authorization (A) — pre, immutable (preA0) ───────────────────────────────
 
@@ -227,13 +238,13 @@ func PreA1_CreateRental(ctx context.Context, db *pgxpool.Pool, userID, movieID u
 }
 
 // PreA1_UpdateSubscriptionExpiry extends or creates a subscription.
-func PreA1_UpdateSubscriptionExpiry(ctx context.Context, db *pgxpool.Pool, userID uuid.UUID, months int) (*models.Subscription, error) {
+func PreA1_UpdateSubscriptionExpiry(ctx context.Context, db DBTX, userID uuid.UUID, months int) (*models.Subscription, error) {
 	sub := &models.Subscription{}
 	err := db.QueryRow(ctx,
 		`INSERT INTO subscriptions (user_id, subscription_expiry)
-         VALUES ($1, NOW() + ($2 || ' months')::INTERVAL)
+         VALUES ($1, NOW() + make_interval(months => $2))
          ON CONFLICT (user_id) DO UPDATE
-           SET subscription_expiry = GREATEST(subscriptions.subscription_expiry, NOW()) + ($2 || ' months')::INTERVAL,
+           SET subscription_expiry = GREATEST(subscriptions.subscription_expiry, NOW()) + make_interval(months => $2),
                updated_at = NOW()
          RETURNING subscription_id, user_id, subscription_expiry, active_device_count, created_at, updated_at`,
 		userID, months,
@@ -299,8 +310,27 @@ func PreB1_CopyrightConsent(ctx context.Context, db *pgxpool.Pool, userID uuid.U
 	return err
 }
 
+// PreB1_OfflineConsent checks/records the first-time commitment not to share
+// downloaded files before a premium_user's first offline download.
+func PreB1_OfflineConsent(ctx context.Context, db *pgxpool.Pool, userID uuid.UUID) error {
+	var consentedAt *time.Time
+	_ = db.QueryRow(ctx,
+		`SELECT offline_consent_at FROM users WHERE user_id = $1`,
+		userID,
+	).Scan(&consentedAt)
+
+	if consentedAt != nil {
+		return nil // already consented
+	}
+	_, err := db.Exec(ctx,
+		`UPDATE users SET offline_consent_at = NOW(), updated_at = NOW() WHERE user_id = $1`,
+		userID,
+	)
+	return err
+}
+
 // PreB1_MockPayment always succeeds (mock). Records the transaction for UCON audit.
-func PreB1_MockPayment(ctx context.Context, db *pgxpool.Pool, userID uuid.UUID, txType string, targetID uuid.UUID, amountVND int) (*models.PaymentTransaction, error) {
+func PreB1_MockPayment(ctx context.Context, db DBTX, userID uuid.UUID, txType string, targetID uuid.UUID, amountVND int) (*models.PaymentTransaction, error) {
 	tx := &models.PaymentTransaction{}
 	err := db.QueryRow(ctx,
 		`INSERT INTO payment_transactions (user_id, transaction_type, target_id, amount_vnd, status)
@@ -324,6 +354,47 @@ func PreB1_TwoFactorAuth(code string) error {
 		return errors.New("2FA code required (header X-2FA-Code: MOCK_2FA_123456)")
 	}
 	return nil // accept any non-empty code in mock mode
+}
+
+// ── Authorization (A) — on, continuous (onA0) ────────────────────────────────
+
+// OnA0_RevokeExpiredOfflineDownloads revokes a user's active offline downloads
+// once their subscription has expired, symmetrically decrementing offline_count
+// (mirrors the pattern used for rental/subscription session revocation, but is
+// evaluated on file-library access rather than through a long-lived SSE session
+// since downloaded files have no open connection to monitor).
+func OnA0_RevokeExpiredOfflineDownloads(ctx context.Context, db *pgxpool.Pool, userID uuid.UUID) error {
+	var expiry time.Time
+	err := db.QueryRow(ctx,
+		`SELECT subscription_expiry FROM subscriptions WHERE user_id = $1`, userID,
+	).Scan(&expiry)
+	if err != nil {
+		return nil // no subscription on record — nothing to revoke
+	}
+	if time.Now().Before(expiry) {
+		return nil // subscription still valid
+	}
+
+	tag, err := db.Exec(ctx,
+		`UPDATE offline_downloads SET status = 'revoked' WHERE user_id = $1 AND status = 'active'`,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to revoke offline downloads: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil
+	}
+
+	// Symmetric post-update: bring offline_count back in sync with what's actually active.
+	_, err = db.Exec(ctx,
+		`UPDATE users SET offline_count = GREATEST(offline_count - $2, 0), updated_at = NOW() WHERE user_id = $1`,
+		userID, tag.RowsAffected(),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to sync offline_count after revocation: %w", err)
+	}
+	return nil
 }
 
 // ── Authorization (A) — on, post-update (onA3) ───────────────────────────────

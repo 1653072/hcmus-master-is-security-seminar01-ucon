@@ -16,6 +16,7 @@ type User struct {
 	AccountType          *string    `db:"account_type" json:"account_type"`
 	OfflineCount         int        `db:"offline_count" json:"offline_count"`
 	CopyrightConsentedAt *time.Time `db:"copyright_consented_at" json:"copyright_consented_at"`
+	OfflineConsentedAt   *time.Time `db:"offline_consent_at" json:"offline_consent_at"`
 	Status               string     `db:"status" json:"status"`
 	CreatedAt            time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt            time.Time  `db:"updated_at" json:"updated_at"`

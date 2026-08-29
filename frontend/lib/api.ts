@@ -153,6 +153,7 @@ export interface User {
   account_type: string | null
   offline_count: number
   copyright_consented_at: string | null
+  offline_consent_at: string | null
   status: string
   created_at: string
   updated_at: string
