@@ -16,6 +16,10 @@ func ListOfflineDownloads(c *gin.Context) {
 	claims := middleware.GetClaims(c)
 	userID, _ := uuid.Parse(claims.UserID)
 
+	// onA0: opening the offline library is the checkpoint that revokes any
+	// downloads left over from a subscription that has since expired.
+	_ = ucon.OnA0_RevokeExpiredOfflineDownloads(context.Background(), database.Pool, userID)
+
 	rows, err := database.Pool.Query(context.Background(),
 		`SELECT od.download_id, od.user_id, od.movie_id, od.downloaded_at, od.status, od.created_at,
                 m.title, m.genre, m.duration_minutes
@@ -95,8 +99,11 @@ func DownloadMovie(c *gin.Context) {
 		return
 	}
 
-	// preB1: mock consent recording
-	_, _ = ucon.PreB1_MockPayment(context.Background(), database.Pool, userID, "subscription", sub.SubscriptionID, 0)
+	// preB1: must commit to not sharing the downloaded file before it's granted
+	if err := ucon.PreB1_OfflineConsent(context.Background(), database.Pool, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to record consent"})
+		return
+	}
 
 	// preA1: increment offline_count (atomic)
 	if err := ucon.PreA1_IncrementOfflineCount(context.Background(), database.Pool, userID); err != nil {

@@ -35,6 +35,7 @@ CREATE TABLE users (
     account_type            user_account_type NULL,           -- NULL when role='admin'
     offline_count           INT             NOT NULL DEFAULT 0 CHECK (offline_count >= 0),
     copyright_consented_at  TIMESTAMPTZ     NULL,
+    offline_consent_at      TIMESTAMPTZ     NULL,           -- preB1: no-share commitment before first offline download
     status                  user_status     NOT NULL DEFAULT 'active',
     created_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW()

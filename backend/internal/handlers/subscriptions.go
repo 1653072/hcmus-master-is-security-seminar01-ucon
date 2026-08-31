@@ -26,26 +26,44 @@ func Subscribe(c *gin.Context) {
 		return
 	}
 
-	// preB1: mock payment first (create temp subscription_id placeholder)
-	tempID := uuid.New()
-	_, err := ucon.PreB1_MockPayment(context.Background(), database.Pool, userID, "subscription", tempID, 99000*req.Months)
+	ctx := context.Background()
+
+	// preA1 and preB1 run inside one DB transaction: the payment record must
+	// reference the subscription it paid for, and neither the subscription
+	// update nor the payment record may survive if the other fails.
+	tx, err := database.Pool.Begin(ctx)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "payment failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to start transaction"})
 		return
 	}
+	defer tx.Rollback(ctx) // no-op once committed
 
 	// preA1: update or create subscription
-	sub, err := ucon.PreA1_UpdateSubscriptionExpiry(context.Background(), database.Pool, userID, req.Months)
+	sub, err := ucon.PreA1_UpdateSubscriptionExpiry(ctx, tx, userID, req.Months)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	// preB1: mock payment, referencing the real subscription_id for audit traceability
+	if _, err := ucon.PreB1_MockPayment(ctx, tx, userID, "subscription", sub.SubscriptionID, 99000*req.Months); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "payment failed"})
+		return
+	}
+
 	// Update account_type to premium
-	_, _ = database.Pool.Exec(context.Background(),
+	if _, err := tx.Exec(ctx,
 		`UPDATE users SET account_type = 'premium', updated_at = NOW() WHERE user_id = $1 AND account_type = 'basic'`,
 		userID,
-	)
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to upgrade account"})
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to commit subscription"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"subscription": sub,
