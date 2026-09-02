@@ -73,7 +73,7 @@ func ListRentals(c *gin.Context) {
 	userID, _ := uuid.Parse(claims.UserID)
 
 	rows, err := database.Pool.Query(context.Background(),
-		`SELECT r.rental_id, r.user_id, r.movie_id, r.rental_views_remaining, r.rental_expiry, r.created_at,
+		`SELECT r.rental_id, r.user_id, r.movie_id, r.rental_views_remaining, r.rental_expiry, r.created_at, r.updated_at,
                 m.title, m.genre, m.duration_minutes
          FROM rentals r JOIN movies m ON r.movie_id = m.movie_id
          WHERE r.user_id = $1 ORDER BY r.created_at DESC`, userID)
@@ -93,7 +93,7 @@ func ListRentals(c *gin.Context) {
 	for rows.Next() {
 		var r RentalWithMovie
 		if err := rows.Scan(&r.RentalID, &r.UserID, &r.MovieID, &r.RentalViewsRemaining,
-			&r.RentalExpiry, &r.CreatedAt, &r.MovieTitle, &r.MovieGenre, &r.MovieDuration); err != nil {
+			&r.RentalExpiry, &r.CreatedAt, &r.UpdatedAt, &r.MovieTitle, &r.MovieGenre, &r.MovieDuration); err != nil {
 			continue
 		}
 		rentals = append(rentals, r)
@@ -116,11 +116,11 @@ func PlayRental(c *gin.Context) {
 	// preA0: rental exists and belongs to user
 	var rental models.Rental
 	err = database.Pool.QueryRow(context.Background(),
-		`SELECT rental_id, user_id, movie_id, rental_views_remaining, rental_expiry, created_at
+		`SELECT rental_id, user_id, movie_id, rental_views_remaining, rental_expiry, created_at, updated_at
          FROM rentals WHERE rental_id = $1 AND user_id = $2`,
 		rentalID, userID,
 	).Scan(&rental.RentalID, &rental.UserID, &rental.MovieID,
-		&rental.RentalViewsRemaining, &rental.RentalExpiry, &rental.CreatedAt)
+		&rental.RentalViewsRemaining, &rental.RentalExpiry, &rental.CreatedAt, &rental.UpdatedAt)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "rental not found", "ucon": "preA0"})
 		return

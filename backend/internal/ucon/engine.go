@@ -171,7 +171,8 @@ func GetUserCountryCode(ctx context.Context, db *pgxpool.Pool, userID uuid.UUID)
 // Returns error if no views remaining (concurrent-safe via WHERE clause).
 func PreA1_DecrementViews(ctx context.Context, db *pgxpool.Pool, rentalID uuid.UUID) error {
 	tag, err := db.Exec(ctx,
-		`UPDATE rentals SET rental_views_remaining = rental_views_remaining - 1
+		`UPDATE rentals SET rental_views_remaining = rental_views_remaining - 1,
+         updated_at = NOW()
          WHERE rental_id = $1 AND rental_views_remaining > 0`,
 		rentalID,
 	)
@@ -225,11 +226,11 @@ func PreA1_CreateRental(ctx context.Context, db *pgxpool.Pool, userID, movieID u
 	err := db.QueryRow(ctx,
 		`INSERT INTO rentals (user_id, movie_id, rental_views_remaining, rental_expiry)
          VALUES ($1, $2, 3, NOW() + INTERVAL '72 hours')
-         RETURNING rental_id, user_id, movie_id, rental_views_remaining, rental_expiry, created_at`,
+         RETURNING rental_id, user_id, movie_id, rental_views_remaining, rental_expiry, created_at, updated_at`,
 		userID, movieID,
 	).Scan(
 		&rental.RentalID, &rental.UserID, &rental.MovieID,
-		&rental.RentalViewsRemaining, &rental.RentalExpiry, &rental.CreatedAt,
+		&rental.RentalViewsRemaining, &rental.RentalExpiry, &rental.CreatedAt, &rental.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rental: %w", err)
@@ -376,7 +377,8 @@ func OnA0_RevokeExpiredOfflineDownloads(ctx context.Context, db *pgxpool.Pool, u
 	}
 
 	tag, err := db.Exec(ctx,
-		`UPDATE offline_downloads SET status = 'revoked' WHERE user_id = $1 AND status = 'active'`,
+		`UPDATE offline_downloads SET status = 'revoked', updated_at = NOW()
+         WHERE user_id = $1 AND status = 'active'`,
 		userID,
 	)
 	if err != nil {

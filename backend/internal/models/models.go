@@ -41,6 +41,7 @@ type Rental struct {
 	RentalViewsRemaining int       `db:"rental_views_remaining" json:"rental_views_remaining"`
 	RentalExpiry         time.Time `db:"rental_expiry" json:"rental_expiry"`
 	CreatedAt            time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt            time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type Subscription struct {
@@ -83,6 +84,7 @@ type OfflineDownload struct {
 	DownloadedAt time.Time `db:"downloaded_at" json:"downloaded_at"`
 	Status       string    `db:"status" json:"status"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type AuditLog struct {

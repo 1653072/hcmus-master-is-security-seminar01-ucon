@@ -21,7 +21,7 @@ func ListOfflineDownloads(c *gin.Context) {
 	_ = ucon.OnA0_RevokeExpiredOfflineDownloads(context.Background(), database.Pool, userID)
 
 	rows, err := database.Pool.Query(context.Background(),
-		`SELECT od.download_id, od.user_id, od.movie_id, od.downloaded_at, od.status, od.created_at,
+		`SELECT od.download_id, od.user_id, od.movie_id, od.downloaded_at, od.status, od.created_at, od.updated_at,
                 m.title, m.genre, m.duration_minutes
          FROM offline_downloads od JOIN movies m ON od.movie_id = m.movie_id
          WHERE od.user_id = $1 AND od.status = 'active' ORDER BY od.created_at DESC`, userID)
@@ -40,7 +40,7 @@ func ListOfflineDownloads(c *gin.Context) {
 	downloads := make([]DownloadWithMovie, 0)
 	for rows.Next() {
 		var d DownloadWithMovie
-		if err := rows.Scan(&d.DownloadID, &d.UserID, &d.MovieID, &d.DownloadedAt, &d.Status, &d.CreatedAt,
+		if err := rows.Scan(&d.DownloadID, &d.UserID, &d.MovieID, &d.DownloadedAt, &d.Status, &d.CreatedAt, &d.UpdatedAt,
 			&d.MovieTitle, &d.MovieGenre, &d.MovieDuration); err != nil {
 			continue
 		}
@@ -114,12 +114,12 @@ func DownloadMovie(c *gin.Context) {
 	var download models.OfflineDownload
 	err = database.Pool.QueryRow(context.Background(),
 		`INSERT INTO offline_downloads (user_id, movie_id) VALUES ($1, $2)
-         RETURNING download_id, user_id, movie_id, downloaded_at, status, created_at`,
+         RETURNING download_id, user_id, movie_id, downloaded_at, status, created_at, updated_at`,
 		userID, movieID,
-	).Scan(&download.DownloadID, &download.UserID, &download.MovieID, &download.DownloadedAt, &download.Status, &download.CreatedAt)
+	).Scan(&download.DownloadID, &download.UserID, &download.MovieID, &download.DownloadedAt, &download.Status, &download.CreatedAt, &download.UpdatedAt)
 	if err != nil {
 		_ = ucon.OnA3_DecrementOfflineCount(context.Background(), database.Pool, userID)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to record download"})
+		c.JSON(http.StatusConflict, gin.H{"error": "this movie is already stored offline", "ucon": "preA1"})
 		return
 	}
 
@@ -141,11 +141,11 @@ func DeleteDownload(c *gin.Context) {
 
 	var download models.OfflineDownload
 	err = database.Pool.QueryRow(context.Background(),
-		`UPDATE offline_downloads SET status = 'deleted'
+		`UPDATE offline_downloads SET status = 'deleted', updated_at = NOW()
          WHERE download_id = $1 AND user_id = $2 AND status = 'active'
-         RETURNING download_id, user_id, movie_id, downloaded_at, status, created_at`,
+         RETURNING download_id, user_id, movie_id, downloaded_at, status, created_at, updated_at`,
 		downloadID, userID,
-	).Scan(&download.DownloadID, &download.UserID, &download.MovieID, &download.DownloadedAt, &download.Status, &download.CreatedAt)
+	).Scan(&download.DownloadID, &download.UserID, &download.MovieID, &download.DownloadedAt, &download.Status, &download.CreatedAt, &download.UpdatedAt)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "active download not found"})
 		return

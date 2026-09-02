@@ -83,96 +83,117 @@ This application implements the movie rental platform described in `CONTENT_V2.m
 
 ## Database Schema
 
+Source of truth: `db/001_init.sql`.
+
 ### 12 Tables
 
-#### users
+#### users (Subject)
 
 
-| Column                 | Type                 | Notes                                   |
-| ---------------------- | -------------------- | --------------------------------------- |
-| user_id                | uuid PK              |                                         |
-| username               | varchar unique       |                                         |
-| password_hash          | text                 | bcrypt cost=10                          |
-| full_name              | varchar              |                                         |
-| gender                 | enum                 | unknown/male/female                     |
-| role                   | enum                 | user/admin                              |
-| account_type           | enum nullable        | basic/premium — NULL when role=admin    |
-| offline_count          | int                  | tracks active offline downloads (max 5) |
-| copyright_consented_at | timestamptz nullable | preB1 first-time consent                |
-| status                 | enum                 | active/blocked/deleted                  |
-| created_at, updated_at | timestamptz          |                                         |
+| Column                 | Type                 | Notes                                                      |
+| ---------------------- | -------------------- | ---------------------------------------------------------- |
+| user_id                | uuid PK              |                                                            |
+| username               | varchar unique       |                                                            |
+| password_hash          | text                 | bcrypt cost=10                                             |
+| full_name              | varchar              |                                                            |
+| gender                 | enum                 | unknown/male/female                                        |
+| role                   | enum                 | user/admin                                                 |
+| account_type           | enum nullable        | basic/premium — NULL when role=admin                       |
+| offline_count          | int                  | active offline files (CHECK 0–5); preA1 +1 / onA3 −1       |
+| copyright_consented_at | timestamptz nullable | preB1 first-time copyright consent (rent)                  |
+| offline_consent_at     | timestamptz nullable | preB1 no-share commitment before first offline download    |
+| status                 | enum                 | active/blocked/deleted                                     |
+| created_at, updated_at | timestamptz          |                                                            |
 
 
+#### movies (Object)
 
 
-#### movies
-
-
-| Column                 | Type        | Notes                                          |
-| ---------------------- | ----------- | ---------------------------------------------- |
-| movie_id               | uuid PK     |                                                |
-| title, genre           | varchar     |                                                |
-| duration_minutes       | int         |                                                |
-| geo_restriction        | text[]      | ISO 3166-1 alpha-2 codes; empty = unrestricted |
-| is_available           | bool        | soft-delete via admin                          |
-| video_file             | text        | filename in `backend/static/videos/`           |
-| created_at, updated_at | timestamptz |                                                |
-
-
+| Column                 | Type        | Notes                                         |
+| ---------------------- | ----------- | --------------------------------------------- |
+| movie_id               | uuid PK     |                                               |
+| title                  | varchar     |                                               |
+| genre                  | varchar     |                                               |
+| duration_minutes       | int         | CHECK > 0                                     |
+| geo_restriction        | text[]      | ISO 3166-1 alpha-2; empty `{}` = unrestricted |
+| is_available           | bool        | soft-delete via admin (preA0)                 |
+| video_file             | text        | filename in `backend/static/videos/`          |
+| created_at, updated_at | timestamptz |                                               |
 
 
 #### rentals (Object — mutable)
 
 
-| Column                 | Type        | Notes                             |
-| ---------------------- | ----------- | --------------------------------- |
-| rental_id              | uuid PK     |                                   |
-| user_id                | uuid FK     |                                   |
-| movie_id               | uuid FK     |                                   |
-| rental_views_remaining | int         | starts at 3, decremented by preA1 |
-| rental_expiry          | timestamptz | now() + 72 hours                  |
-| created_at             | timestamptz |                                   |
-
-
+| Column                 | Type        | Notes                                         |
+| ---------------------- | ----------- | --------------------------------------------- |
+| rental_id              | uuid PK     |                                               |
+| user_id                | uuid FK     | → users                                       |
+| movie_id               | uuid FK     | → movies                                      |
+| rental_views_remaining | int         | starts at 3; preA1 decrements (CHECK ≥ 0)     |
+| rental_expiry          | timestamptz | `now() + 72 hours`                            |
+| created_at, updated_at | timestamptz | `updated_at` set when views remaining changes |
 
 
 #### subscriptions (Object — mutable)
 
 
-| Column                 | Type           | Notes                               |
-| ---------------------- | -------------- | ----------------------------------- |
-| subscription_id        | uuid PK        |                                     |
-| user_id                | uuid FK unique |                                     |
-| subscription_expiry    | timestamptz    |                                     |
-| active_device_count    | int            | incremented preA1, decremented onA3 |
-| created_at, updated_at | timestamptz    |                                     |
-
-
+| Column                 | Type           | Notes                          |
+| ---------------------- | -------------- | ------------------------------ |
+| subscription_id        | uuid PK        |                                |
+| user_id                | uuid FK unique | one row per premium_user       |
+| subscription_expiry    | timestamptz    | preA0 / onA0                   |
+| active_device_count    | int            | preA1 +1 / onA3 −1 (CHECK 0–3) |
+| created_at, updated_at | timestamptz    |                                |
 
 
 #### sessions
 
-
-| Column                 | Type                 | Notes                       |
-| ---------------------- | -------------------- | --------------------------- |
-| session_id             | uuid PK              |                             |
-| user_id, movie_id      | uuid FK              |                             |
-| session_type           | enum                 | rental/subscription         |
-| rental_id              | uuid nullable FK     |                             |
-| device_info            | text                 | User-Agent string           |
-| started_at             | timestamptz          |                             |
-| ended_at               | timestamptz nullable |                             |
-| is_active              | bool                 | set to false on stop/revoke |
-| created_at, updated_at | timestamptz          |                             |
+Playback session used by onA0 SSE monitoring. `rental_id` is required when `session_type = 'rental'`.
 
 
+| Column                 | Type                 | Notes                             |
+| ---------------------- | -------------------- | --------------------------------- |
+| session_id             | uuid PK              |                                   |
+| user_id                | uuid FK              | → users                           |
+| movie_id               | uuid FK              | → movies                          |
+| session_type           | enum                 | rental / subscription             |
+| rental_id              | uuid nullable FK     | required when session_type=rental |
+| device_info            | text                 | User-Agent string                 |
+| started_at             | timestamptz          |                                   |
+| ended_at               | timestamptz nullable | set on stop / revoke              |
+| is_active              | bool                 | false on stop / revoke            |
+| created_at, updated_at | timestamptz          |                                   |
 
 
-#### watch_history (append-only audit trail)
+#### watch_history (append-only)
 
-No DELETE endpoint exposed. preA0 denial enforced at API layer.
+No DELETE endpoint. preA0 denial of the delete right is enforced at the API layer.
+
+
+| Column      | Type        | Notes                                                |
+| ----------- | ----------- | ---------------------------------------------------- |
+| history_id  | uuid PK     |                                                      |
+| user_id     | uuid FK     | → users; ownership check `user_id(S)=user_id(O)`     |
+| movie_id    | uuid FK     | → movies                                             |
+| watch_start | timestamptz | copied from session.started_at (onA3)                |
+| watch_end   | timestamptz | copied from session.ended_at (onA3)                  |
+| device_info | text        | User-Agent snapshot for copyright audit              |
+| created_at  | timestamptz |                                                      |
+
 
 #### offline_downloads
+
+Unique partial index: one **active** copy of a given movie per user.
+
+
+| Column                 | Type        | Notes                                |
+| ---------------------- | ----------- | ------------------------------------ |
+| download_id            | uuid PK     |                                      |
+| user_id                | uuid FK     | → users                              |
+| movie_id               | uuid FK     | → movies                             |
+| downloaded_at          | timestamptz |                                      |
+| status                 | enum        | active / deleted / revoked           |
+| created_at, updated_at | timestamptz | `updated_at` set when status changes |
 
 
 | status  | Trigger                                                |
@@ -182,28 +203,91 @@ No DELETE endpoint exposed. preA0 denial enforced at API layer.
 | revoked | subscription expires (onA0 — decrements offline_count) |
 
 
-
-
 #### audit_log (append-only)
 
-Every admin action (CREATE/UPDATE/DELETE movie, BLOCK user) writes a record here (onA3).
+Every admin action (CREATE / UPDATE / DELETE movie, BLOCK user) writes a row here (onA3).
+
+
+| Column      | Type        | Notes                         |
+| ----------- | ----------- | ----------------------------- |
+| log_id      | uuid PK     |                               |
+| admin_id    | uuid FK     | → users                       |
+| action      | text        | e.g. CREATE_MOVIE, BLOCK_USER |
+| target_type | text        | movie / user                  |
+| target_id   | text        | UUID of the target            |
+| reason      | text        | required rationale            |
+| created_at  | timestamptz |                               |
+
 
 #### user_locations
 
-Populated by FE `navigator.geolocation` → `POST /api/users/location`.  
-Backend calls OpenStreetMap Nominatim to resolve `country_code`.  
-preC0 reads the latest record per user.
+Populated by FE `navigator.geolocation` → `POST /api/users/location`.
+Backend reverse-geocodes lat/lng via BigDataCloud (`api-bdc.io`) to an ISO 3166-1 alpha-2 `country_code`.
+preC0 reads the **latest** row per user (`ORDER BY captured_at DESC LIMIT 1`).
+
+
+| Column       | Type        | Notes                              |
+| ------------ | ----------- | ---------------------------------- |
+| location_id  | uuid PK     |                                    |
+| user_id      | uuid FK     | → users                            |
+| country_code | char(2)     | ISO 3166-1 alpha-2; `XX` = unknown |
+| latitude     | float8      | from browser                       |
+| longitude    | float8      | from browser                       |
+| captured_at  | timestamptz |                                    |
+
 
 #### payment_transactions
 
-Records every payment event (rental: ₫45,000, subscription: ₫99,000/month).  
-Always `status=success` in mock mode. preB1 validates transaction exists before granting access.
+Records every payment event (rental: ₫45,000, subscription: ₫99,000/month).
+Always `status=success` in mock mode. preB1 inserts a row before granting the rental / subscription update.
 
-#### ads + ads_history
 
-`ads`: metadata for ad videos in `backend/static/ads/`.  
-`ads_history`: tracks per-rental-attempt ad completion (`completed=true` when `watch_duration_seconds >= 15`).  
-preB0 checks `ads_history` before allowing `POST /api/rentals/:id/play`.
+| Column           | Type        | Notes                        |
+| ---------------- | ----------- | ---------------------------- |
+| transaction_id   | uuid PK     |                              |
+| user_id          | uuid FK     | → users                      |
+| transaction_type | enum        | rental / subscription        |
+| target_id        | uuid        | rental_id or subscription_id |
+| amount_vnd       | int         |                              |
+| status           | enum        | success / failed             |
+| created_at       | timestamptz |                              |
+
+
+#### ads
+
+Metadata for ad videos in `backend/static/ads/`.
+
+
+| Column           | Type        | Notes                     |
+| ---------------- | ----------- | ------------------------- |
+| ad_id            | uuid PK     |                           |
+| title            | text        |                           |
+| video_file       | text        | filename under static/ads |
+| duration_seconds | int         | CHECK > 0; demo ad = 15   |
+| is_active        | bool        |                           |
+| created_at       | timestamptz |                           |
+
+
+#### ads_history
+
+Tracks per-rental-attempt ad completion.
+`completed = true` when `watch_duration_seconds >= 15`.
+preB0 allows `POST /api/rentals/:id/play` only if a completed row exists for that rental within the last 5 minutes.
+
+
+| Column                 | Type                 | Notes      |
+| ---------------------- | -------------------- | ---------- |
+| history_id             | uuid PK              |            |
+| user_id                | uuid FK              | → users    |
+| rental_id              | uuid FK              | → rentals  |
+| movie_id               | uuid FK              | → movies   |
+| ad_id                  | uuid FK              | → ads      |
+| watch_start            | timestamptz          |            |
+| watch_end              | timestamptz nullable |            |
+| watch_duration_seconds | int                  |            |
+| completed              | bool                 | preB0 gate |
+| created_at             | timestamptz          |            |
+
 
 ---
 
@@ -232,7 +316,7 @@ PreA0_MovieAvailable    — movie.is_available == true
 ```
 PreC0_GeoRestriction    — user_locations.country_code ∈ movie.geo_restriction
                           (empty geo_restriction = unrestricted)
-FetchCountryCode        — Nominatim reverse geocoding (lat/lng → ISO country code)
+FetchCountryCode        — BigDataCloud reverse geocoding (lat/lng → ISO country code)
 GetUserCountryCode      — latest country_code from user_locations
 ```
 
@@ -255,6 +339,7 @@ PreA1_UpdateSubscriptionExpiry — UPSERT subscription expiry
 ```
 PreB0_AdObligation      — check ads_history.completed=true within 5 min for rental
 PreB1_CopyrightConsent  — check/record copyright_consented_at on first rent
+PreB1_OfflineConsent    — check/record offline_consent_at on first download
 PreB1_MockPayment       — INSERT payment_transactions (always success)
 PreB1_TwoFactorAuth     — accept any non-empty X-2FA-Code header
 ```
@@ -682,7 +767,7 @@ Admin 2FA: `MOCK_2FA_123456` (sent automatically by frontend via `X-2FA-Code` he
 | -------------------------------- | --------------- | ----------------------------------------------------------------- |
 | Payment                          | Mock            | Always succeeds; transaction recorded for UCON audit              |
 | 2FA                              | Mock            | Any non-empty `X-2FA-Code` accepted; value `MOCK_2FA_123456` used |
-| Geo-restriction                  | Real            | Uses `navigator.geolocation` + OpenStreetMap Nominatim            |
+| Geo-restriction                  | Real            | Uses `navigator.geolocation` + BigDataCloud reverse geocoding     |
 | Ad obligation                    | Real            | 15-second timer enforced client-side + server validates duration  |
 | Video streaming                  | Real            | HTTP Range requests served from `backend/static/videos/`          |
 | Watermarking                     | Not implemented | Noted as limitation in CONTENT_V2.md                              |
@@ -697,5 +782,5 @@ Admin 2FA: `MOCK_2FA_123456` (sent automatically by frontend via `X-2FA-Code` he
 
 - Park, J., & Sandhu, R. (2004). The UCON_ABC usage control model. ACM Transactions on Information and System Security.
 - NIST SP 800-207: Zero Trust Architecture
-- OpenStreetMap Nominatim API: [https://nominatim.org/](https://nominatim.org/)
+- BigDataCloud reverse-geocode API: [https://www.bigdatacloud.com/docs/api/free-reverse-geocode-to-city-api](https://www.bigdatacloud.com/docs/api/free-reverse-geocode-to-city-api)
 

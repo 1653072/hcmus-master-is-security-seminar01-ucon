@@ -33,7 +33,7 @@ CREATE TABLE users (
     gender                  user_gender     NOT NULL DEFAULT 'unknown',
     role                    user_role       NOT NULL DEFAULT 'user',
     account_type            user_account_type NULL,           -- NULL when role='admin'
-    offline_count           INT             NOT NULL DEFAULT 0 CHECK (offline_count >= 0),
+    offline_count           INT             NOT NULL DEFAULT 0 CHECK (offline_count >= 0 AND offline_count <= 5),
     copyright_consented_at  TIMESTAMPTZ     NULL,
     offline_consent_at      TIMESTAMPTZ     NULL,           -- preB1: no-share commitment before first offline download
     status                  user_status     NOT NULL DEFAULT 'active',
@@ -63,7 +63,8 @@ CREATE TABLE rentals (
     movie_id                UUID        NOT NULL REFERENCES movies(movie_id),
     rental_views_remaining  INT         NOT NULL DEFAULT 3 CHECK (rental_views_remaining >= 0),
     rental_expiry           TIMESTAMPTZ NOT NULL,
-    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Object: subscription (mutable — subscription_expiry, active_device_count)
@@ -72,7 +73,7 @@ CREATE TABLE subscriptions (
     subscription_id     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id             UUID        NOT NULL UNIQUE REFERENCES users(user_id),
     subscription_expiry TIMESTAMPTZ NOT NULL,
-    active_device_count INT         NOT NULL DEFAULT 0 CHECK (active_device_count >= 0),
+    active_device_count INT         NOT NULL DEFAULT 0 CHECK (active_device_count >= 0 AND active_device_count <= 3),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -89,7 +90,9 @@ CREATE TABLE sessions (
     ended_at     TIMESTAMPTZ  NULL,
     is_active    BOOL         NOT NULL DEFAULT TRUE,
     created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    updated_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT sessions_rental_id_required
+        CHECK (session_type <> 'rental' OR rental_id IS NOT NULL)
 );
 
 -- Object: watch_history (audit trail — no DELETE permission via API)
@@ -111,7 +114,8 @@ CREATE TABLE offline_downloads (
     movie_id     UUID           NOT NULL REFERENCES movies(movie_id),
     downloaded_at TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
     status       offline_status NOT NULL DEFAULT 'active',
-    created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
+    created_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
 -- Audit trail for admin actions (append-only)
@@ -126,7 +130,7 @@ CREATE TABLE audit_log (
 );
 
 -- User geo location (for preC0 geo-restriction validation)
--- Populated by FE navigator.geolocation + backend Nominatim reverse geocoding
+-- Populated by FE navigator.geolocation + backend reverse geocoding (BigDataCloud)
 CREATE TABLE user_locations (
     location_id  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id      UUID        NOT NULL REFERENCES users(user_id),
@@ -185,6 +189,9 @@ CREATE INDEX idx_sessions_is_active           ON sessions(is_active) WHERE is_ac
 CREATE INDEX idx_watch_history_user_id        ON watch_history(user_id);
 CREATE INDEX idx_offline_downloads_user_id    ON offline_downloads(user_id);
 CREATE INDEX idx_offline_downloads_status     ON offline_downloads(status);
+-- One active copy of a given movie per user (preA1 offline_count counts unique stored files)
+CREATE UNIQUE INDEX idx_offline_downloads_active_unique
+    ON offline_downloads(user_id, movie_id) WHERE status = 'active';
 CREATE INDEX idx_user_locations_user_id       ON user_locations(user_id);
 CREATE INDEX idx_user_locations_captured_at   ON user_locations(captured_at DESC);
 CREATE INDEX idx_audit_log_admin_id           ON audit_log(admin_id);
