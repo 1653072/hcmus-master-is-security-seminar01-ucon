@@ -81,15 +81,9 @@ This application implements the movie rental platform described in `CONTENT_V2.m
 
 ---
 
-
-
 ## Database Schema
 
-
-
 ### 12 Tables
-
-
 
 #### users
 
