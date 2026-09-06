@@ -139,6 +139,21 @@ export const api = {
         method: 'PUT', twoFA: true
       }),
   },
+
+  demo: {
+    expireRental: (rental_id: string) =>
+      request<{ message: string }>('/api/demo/expire-rental', {
+        method: 'POST', body: JSON.stringify({ rental_id })
+      }),
+    expireSubscription: () =>
+      request<{ message: string }>('/api/demo/expire-subscription', { method: 'POST' }),
+    deleteLocation: () =>
+      request<{ message: string }>('/api/demo/location', { method: 'DELETE' }),
+    resetDevices: () =>
+      request<{ message: string }>('/api/demo/reset-devices', { method: 'POST' }),
+    resetAll: () =>
+      request<{ message: string }>('/api/demo/reset-all', { method: 'POST' }),
+  },
 }
 
 export { getToken, setToken, clearToken }

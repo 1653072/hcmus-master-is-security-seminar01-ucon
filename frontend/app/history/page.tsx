@@ -32,7 +32,7 @@ export default function HistoryPage() {
         <h1 className="text-2xl font-bold mb-2">Watch History</h1>
         <div className="mb-6 p-3 bg-gray-900 rounded text-xs text-gray-500 border border-gray-800">
           <strong className="text-purple-400">UCON preA0:</strong> Only records belonging to your account are returned.
-          The DELETE right on watch_history is denied to all roles — records exist as an immutable audit trail
+          The DELETE right on watch_histories is denied to all roles — records exist as an immutable audit trail
           (preA0 authorization denial at API layer).
         </div>
 

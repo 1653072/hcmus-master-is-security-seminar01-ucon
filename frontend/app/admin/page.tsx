@@ -104,7 +104,7 @@ export default function AdminPage() {
         <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
           <h1 className="text-2xl font-bold">Admin Console</h1>
           <div className="text-xs bg-red-900/30 border border-red-700 text-red-300 px-3 py-2 rounded">
-            <strong>UCON:</strong> preA0 (role=admin) + preB1 (X-2FA-Code header sent automatically) + onA3 (audit_log)
+            <strong>UCON:</strong> preA0 (role=admin) + preB1 (X-2FA-Code header sent automatically) + onA3 (audit_logs)
           </div>
         </div>
 

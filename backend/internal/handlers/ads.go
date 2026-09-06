@@ -44,7 +44,7 @@ func CompleteAd(c *gin.Context) {
 	now := time.Now()
 
 	_, err = database.Pool.Exec(context.Background(),
-		`INSERT INTO ads_history (user_id, rental_id, movie_id, ad_id, watch_end, watch_duration_seconds, completed)
+		`INSERT INTO ads_histories (user_id, rental_id, movie_id, ad_id, watch_end, watch_duration_seconds, completed)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		userID, req.RentalID, movieID, req.AdID, now, req.WatchDurationSeconds, completed,
 	)

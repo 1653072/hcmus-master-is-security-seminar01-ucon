@@ -85,6 +85,17 @@ func main() {
 			admin.GET("/users", handlers.AdminListUsers)
 			admin.PUT("/users/:id/block", handlers.AdminBlockUser)
 		}
+
+		// Demo-only reset endpoints (backstage triggers for the Demo Panel /demo-panel,
+		// stand in for the "docker exec ucon_postgres psql ..." steps in SenarioDemo.md)
+		demo := auth.Group("/demo", middleware.RequireDemoMode())
+		{
+			demo.POST("/expire-rental", handlers.DemoExpireRental)
+			demo.POST("/expire-subscription", handlers.DemoExpireSubscription)
+			demo.DELETE("/location", handlers.DemoDeleteLocation)
+			demo.POST("/reset-devices", handlers.DemoResetDevices)
+			demo.POST("/reset-all", handlers.DemoResetAll)
+		}
 	}
 
 	port := os.Getenv("PORT")

@@ -168,7 +168,7 @@ export default function MovieDetailPage() {
               </div>
 
               <div className="mt-6 p-3 bg-gray-900 rounded text-xs text-gray-500 space-y-1">
-                <p><strong className="text-purple-400">UCON (basic_user play):</strong> preA0 → preC0 → preB0 (ad 15s) → preA1 (decrement views) → onA0 (SSE monitoring) → onA3 (watch_history)</p>
+                <p><strong className="text-purple-400">UCON (basic_user play):</strong> preA0 → preC0 → preB0 (ad 15s) → preA1 (decrement views) → onA0 (SSE monitoring) → onA3 (watch_histories)</p>
                 <p><strong className="text-purple-400">UCON (premium_user play):</strong> preA0 → preC0 → preA1 (device_count++) → onA0 (SSE) → onA3</p>
               </div>
             </div>

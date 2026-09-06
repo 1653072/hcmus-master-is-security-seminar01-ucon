@@ -18,7 +18,7 @@ func ListHistory(c *gin.Context) {
 	rows, err := database.Pool.Query(context.Background(),
 		`SELECT wh.history_id, wh.user_id, wh.movie_id, wh.watch_start, wh.watch_end, wh.device_info, wh.created_at,
                 m.title, m.genre, m.duration_minutes
-         FROM watch_history wh JOIN movies m ON wh.movie_id = m.movie_id
+         FROM watch_histories wh JOIN movies m ON wh.movie_id = m.movie_id
          WHERE wh.user_id = $1 ORDER BY wh.watch_start DESC`, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch history"})

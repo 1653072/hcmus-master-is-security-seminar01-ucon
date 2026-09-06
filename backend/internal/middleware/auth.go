@@ -2,11 +2,26 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ucon-movie/backend/internal/auth"
 )
+
+// RequireDemoMode gates the demo-only reset endpoints (backstage triggers for
+// SenarioDemo.md's Demo Panel) behind DEMO_MODE, which is enabled by default for
+// local demo use. Set DEMO_MODE=false to disable them outside that context.
+func RequireDemoMode() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if os.Getenv("DEMO_MODE") == "false" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "demo endpoints are disabled (DEMO_MODE=false)"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
 
 const (
 	ClaimsKey = "claims"

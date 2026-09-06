@@ -41,7 +41,7 @@ func StopSession(c *gin.Context) {
 		return
 	}
 
-	// onA3: write watch_history
+	// onA3: write watch_histories
 	_ = ucon.OnA3_WriteWatchHistory(context.Background(), database.Pool, &session)
 
 	// onA3: decrement device count if subscription session

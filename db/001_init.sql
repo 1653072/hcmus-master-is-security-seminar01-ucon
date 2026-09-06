@@ -95,8 +95,8 @@ CREATE TABLE sessions (
         CHECK (session_type <> 'rental' OR rental_id IS NOT NULL)
 );
 
--- Object: watch_history (audit trail — no DELETE permission via API)
-CREATE TABLE watch_history (
+-- Object: watch_histories (audit trail — no DELETE permission via API)
+CREATE TABLE watch_histories (
     history_id  UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id     UUID        NOT NULL REFERENCES users(user_id),
     movie_id    UUID        NOT NULL REFERENCES movies(movie_id),
@@ -119,7 +119,7 @@ CREATE TABLE offline_downloads (
 );
 
 -- Audit trail for admin actions (append-only)
-CREATE TABLE audit_log (
+CREATE TABLE audit_logs (
     log_id      UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     admin_id    UUID        NOT NULL REFERENCES users(user_id),
     action      TEXT        NOT NULL,
@@ -164,7 +164,7 @@ CREATE TABLE ads (
 
 -- Ad viewing history (tracks preB0 completion per rental attempt)
 -- completed=true when watch_duration_seconds >= 15
-CREATE TABLE ads_history (
+CREATE TABLE ads_histories (
     history_id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id              UUID        NOT NULL REFERENCES users(user_id),
     rental_id            UUID        NOT NULL REFERENCES rentals(rental_id),
@@ -186,7 +186,7 @@ CREATE INDEX idx_rentals_movie_id             ON rentals(movie_id);
 CREATE INDEX idx_rentals_expiry               ON rentals(rental_expiry);
 CREATE INDEX idx_sessions_user_id             ON sessions(user_id);
 CREATE INDEX idx_sessions_is_active           ON sessions(is_active) WHERE is_active = TRUE;
-CREATE INDEX idx_watch_history_user_id        ON watch_history(user_id);
+CREATE INDEX idx_watch_histories_user_id      ON watch_histories(user_id);
 CREATE INDEX idx_offline_downloads_user_id    ON offline_downloads(user_id);
 CREATE INDEX idx_offline_downloads_status     ON offline_downloads(status);
 -- One active copy of a given movie per user (preA1 offline_count counts unique stored files)
@@ -194,9 +194,9 @@ CREATE UNIQUE INDEX idx_offline_downloads_active_unique
     ON offline_downloads(user_id, movie_id) WHERE status = 'active';
 CREATE INDEX idx_user_locations_user_id       ON user_locations(user_id);
 CREATE INDEX idx_user_locations_captured_at   ON user_locations(captured_at DESC);
-CREATE INDEX idx_audit_log_admin_id           ON audit_log(admin_id);
-CREATE INDEX idx_ads_history_rental_id        ON ads_history(rental_id);
-CREATE INDEX idx_ads_history_completed        ON ads_history(rental_id, completed, created_at DESC);
+CREATE INDEX idx_audit_logs_admin_id           ON audit_logs(admin_id);
+CREATE INDEX idx_ads_histories_rental_id      ON ads_histories(rental_id);
+CREATE INDEX idx_ads_histories_completed      ON ads_histories(rental_id, completed, created_at DESC);
 CREATE INDEX idx_payment_transactions_user_id ON payment_transactions(user_id);
 CREATE INDEX idx_movies_created_at            ON movies(created_at DESC);
 

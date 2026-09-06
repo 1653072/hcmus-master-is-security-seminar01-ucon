@@ -1,10 +1,15 @@
 'use client'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { logout } from '@/lib/auth'
 import { type User } from '@/lib/api'
 
 export default function Navbar({ user }: { user: User | null }) {
+  const pathname = usePathname()
   if (!user) return null
+
+  const linkClass = (href: string) =>
+    pathname === href ? 'text-white font-semibold' : 'text-gray-300 hover:text-white'
 
   return (
     <nav className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
@@ -14,22 +19,23 @@ export default function Navbar({ user }: { user: User | null }) {
       <div className="flex items-center gap-4 text-sm">
         {user.role === 'user' && (
           <>
-            <Link href="/" className="text-gray-300 hover:text-white">Browse</Link>
-            <Link href="/history" className="text-gray-300 hover:text-white">History</Link>
+            <Link href="/" className={linkClass('/')}>Browse</Link>
+            <Link href="/history" className={linkClass('/history')}>History</Link>
             {user.account_type === 'premium' && (
               <>
-                <Link href="/offline" className="text-gray-300 hover:text-white">Offline</Link>
-                <Link href="/subscription" className="text-gray-300 hover:text-white">Subscription</Link>
+                <Link href="/offline" className={linkClass('/offline')}>Offline</Link>
+                <Link href="/subscription" className={linkClass('/subscription')}>Subscription</Link>
               </>
             )}
             {user.account_type === 'basic' && (
-              <Link href="/subscription" className="text-gray-300 hover:text-white">Upgrade</Link>
+              <Link href="/subscription" className={linkClass('/subscription')}>Upgrade</Link>
             )}
           </>
         )}
         {user.role === 'admin' && (
-          <Link href="/admin" className="text-gray-300 hover:text-white">Admin</Link>
+          <Link href="/admin" className={linkClass('/admin')}>Admin</Link>
         )}
+        <Link href="/demo-panel" className={linkClass('/demo-panel')}>Control Panel</Link>
         <span className="text-gray-500">|</span>
         <span className="text-gray-400">
           {user.username}

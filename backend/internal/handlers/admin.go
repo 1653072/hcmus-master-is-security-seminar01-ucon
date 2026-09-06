@@ -166,7 +166,7 @@ func AdminGetAuditLog(c *gin.Context) {
 	rows, err := database.Pool.Query(context.Background(),
 		`SELECT al.log_id, al.admin_id, al.action, al.target_type, al.target_id, al.reason, al.created_at,
                 u.username as admin_username
-         FROM audit_log al JOIN users u ON al.admin_id = u.user_id
+         FROM audit_logs al JOIN users u ON al.admin_id = u.user_id
          ORDER BY al.created_at DESC LIMIT 100`)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch audit log"})

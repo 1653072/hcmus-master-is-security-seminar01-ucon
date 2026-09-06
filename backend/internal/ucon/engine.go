@@ -267,7 +267,7 @@ func PreB0_AdObligation(ctx context.Context, db *pgxpool.Pool, userID, rentalID 
 	// Check for a completed ad record in the last 5 minutes
 	var count int
 	err := db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM ads_history
+		`SELECT COUNT(*) FROM ads_histories
          WHERE user_id = $1 AND rental_id = $2 AND completed = TRUE
          AND created_at > NOW() - INTERVAL '5 minutes'`,
 		userID, rentalID,
@@ -401,14 +401,14 @@ func OnA0_RevokeExpiredOfflineDownloads(ctx context.Context, db *pgxpool.Pool, u
 
 // ── Authorization (A) — on, post-update (onA3) ───────────────────────────────
 
-// OnA3_WriteWatchHistory creates a watch_history record from a completed session.
+// OnA3_WriteWatchHistory creates a watch_histories record from a completed session.
 func OnA3_WriteWatchHistory(ctx context.Context, db *pgxpool.Pool, session *models.Session) error {
 	watchEnd := time.Now()
 	if session.EndedAt != nil {
 		watchEnd = *session.EndedAt
 	}
 	_, err := db.Exec(ctx,
-		`INSERT INTO watch_history (user_id, movie_id, watch_start, watch_end, device_info)
+		`INSERT INTO watch_histories (user_id, movie_id, watch_start, watch_end, device_info)
          VALUES ($1, $2, $3, $4, $5)`,
 		session.UserID, session.MovieID, session.StartedAt, watchEnd, session.DeviceInfo,
 	)
@@ -438,7 +438,7 @@ func OnA3_DecrementOfflineCount(ctx context.Context, db *pgxpool.Pool, userID uu
 // OnA3_WriteAuditLog records an admin action.
 func OnA3_WriteAuditLog(ctx context.Context, db *pgxpool.Pool, adminID uuid.UUID, action, targetType, targetID, reason string) error {
 	_, err := db.Exec(ctx,
-		`INSERT INTO audit_log (admin_id, action, target_type, target_id, reason)
+		`INSERT INTO audit_logs (admin_id, action, target_type, target_id, reason)
          VALUES ($1, $2, $3, $4, $5)`,
 		adminID, action, targetType, targetID, reason,
 	)
