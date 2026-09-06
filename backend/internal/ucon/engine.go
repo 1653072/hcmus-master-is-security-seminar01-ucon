@@ -316,7 +316,7 @@ func PreB1_CopyrightConsent(ctx context.Context, db *pgxpool.Pool, userID uuid.U
 func PreB1_OfflineConsent(ctx context.Context, db *pgxpool.Pool, userID uuid.UUID) error {
 	var consentedAt *time.Time
 	_ = db.QueryRow(ctx,
-		`SELECT offline_consent_at FROM users WHERE user_id = $1`,
+		`SELECT offline_consented_at FROM users WHERE user_id = $1`,
 		userID,
 	).Scan(&consentedAt)
 
@@ -324,7 +324,7 @@ func PreB1_OfflineConsent(ctx context.Context, db *pgxpool.Pool, userID uuid.UUI
 		return nil // already consented
 	}
 	_, err := db.Exec(ctx,
-		`UPDATE users SET offline_consent_at = NOW(), updated_at = NOW() WHERE user_id = $1`,
+		`UPDATE users SET offline_consented_at = NOW(), updated_at = NOW() WHERE user_id = $1`,
 		userID,
 	)
 	return err

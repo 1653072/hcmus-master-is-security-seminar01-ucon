@@ -135,10 +135,10 @@ func DemoResetAll(c *gin.Context) {
 		`TRUNCATE sessions, watch_histories, rentals, ads_histories, offline_downloads,
          payment_transactions, audit_logs, user_locations CASCADE`,
 		`UPDATE users SET status = 'active', offline_count = 0, copyright_consented_at = NULL,
-         offline_consent_at = NULL, account_type = 'basic', updated_at = NOW()
+         offline_consented_at = NULL, account_type = 'basic', updated_at = NOW()
          WHERE username = 'basic_demo'`,
 		`UPDATE users SET status = 'active', offline_count = 0, copyright_consented_at = NULL,
-         offline_consent_at = NULL, updated_at = NOW()
+         offline_consented_at = NULL, updated_at = NOW()
          WHERE username <> 'basic_demo'`,
 		`UPDATE subscriptions SET active_device_count = 0,
          subscription_expiry = NOW() + INTERVAL '30 days', updated_at = NOW()`,

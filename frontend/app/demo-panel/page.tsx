@@ -142,8 +142,12 @@ export default function DemoPanelPage() {
 
             {/* D.1 */}
             <Section title="D.1 - Thuê phim"
-              hint="Bấm nút Rent trên tab app thật (không có nút riêng ở đây vì thao tác Rent thuộc luồng UI chính, cần cho lớp thấy)."
-              message={{ models: ['preA0', 'preB1', 'preA1'], text: 'Nghĩa vụ phải hoàn thành trước khi được cấp quyền' }} />
+              purpose={{ models: ['preA0', 'preB1', 'preA1'], text: 'Nghĩa vụ phải hoàn thành TRƯỚC KHI được cấp quyền - preB1 luôn đứng trước preA1, không phải ngược lại.' }}
+              steps={[
+                'Trên tab app thật: đăng nhập basic_demo, bấm Rent phim Big Buck Bunny.',
+                'Lần đầu thuê, hệ thống tự ghi nhận đồng ý điều khoản bản quyền (preB1) trước khi tạo rental.',
+              ]}
+              expect="Rental được tạo với 3 lượt xem, hạn 72 giờ - nhưng chỉ SAU KHI nghĩa vụ preB1 (đồng ý điều khoản + thanh toán) đã hoàn tất." />
 
             {/* Rental picker */}
             <div className="mt-6 bg-gray-50 border border-gray-200 rounded p-4">
@@ -175,46 +179,77 @@ export default function DemoPanelPage() {
             </div>
 
             {/* D.2 */}
-            <Section title="D.2 - Quảng cáo bắt buộc" hint="Chạy sau khi đã Rent và biểu diễn Play lần 1 trên UI (bị chặn preB0)."
-              message={{ models: ['preB0'], text: 'Ví dụ về oBligations - thứ RBAC hoàn toàn không có' }}>
-              <Btn busy={busy} label="GIAN LẬN: khai đã xem 10 giây (kỳ vọng 400)" models={['preB0']}
+            <Section title="D.2 - Quảng cáo bắt buộc"
+              purpose={{ models: ['preB0'], text: 'RBAC chỉ biết "có quyền hay không" - không có khái niệm "phải LÀM GÌ trước khi dùng quyền". UCON gọi đây là oBligation.' }}
+              steps={[
+                'Trên tab app thật: bấm Play - bị chặn, chuyển sang trang quảng cáo.',
+                'Ở panel: bấm "GIAN LẬN" - giả lập gọi thẳng vào server, khai đã xem 10 giây (bỏ qua UI và bộ đếm).',
+                'Ở panel: bấm "Hoàn thành nghĩa vụ" - khai đủ 15 giây.',
+              ]}
+              expect='Bước 2 bị server từ chối (400) dù không đi qua giao diện nào - chứng minh quyết định nằm ở SERVER, không phải ở đồng hồ đếm trên màn hình. Bước 3 mới được chấp nhận (200).'>
+              <Btn busy={busy} step={2} label="GIAN LẬN: khai đã xem 10 giây (kỳ vọng 400)" models={['preB0']}
                 onClick={() => run('GIAN LẬN (10s)', ['preB0'], () => api.ads.complete(selectedRentalId, AD_ID, 10))}
                 disabled={!selectedRentalId} variant="danger" />
-              <Btn busy={busy} label="Hoàn thành nghĩa vụ: xem đủ 15 giây (kỳ vọng 200)" models={['preB0']}
+              <Btn busy={busy} step={3} label="Hoàn thành nghĩa vụ: xem đủ 15 giây (kỳ vọng 200)" models={['preB0']}
                 onClick={() => run('Hoàn thành (15s)', ['preB0'], () => api.ads.complete(selectedRentalId, AD_ID, 15))}
                 disabled={!selectedRentalId} />
             </Section>
 
             {/* D.3 */}
-            <Section title="D.3 - Thu hồi giữa phiên ⭐" hint="Chạy khi phim (rental được chọn ở trên) đang phát trên tab app thật. Đếm to 15 giây sau khi bấm."
-              message={{ models: ['onA0'], text: 'Trực quan cho Continuity of Decisions' }}>
-              <Btn busy={busy} label="Ép rental hết hạn ngay bây giờ" models={['onA0']}
+            <Section title="D.3 - Thu hồi giữa phiên ⭐"
+              purpose={{ models: ['onA0'], text: 'RBAC kiểm tra quyền MỘT LẦN lúc mở khóa cửa, rồi thôi. UCON tiếp tục canh gác SUỐT quá trình sử dụng - đây gọi là Continuity of Decisions.' }}
+              steps={[
+                'Trên tab app thật: giữ nguyên tab đang phát phim, KHÔNG bấm Stop.',
+                'Ở panel: bấm "Ép rental hết hạn ngay bây giờ".',
+                'Đếm to 15 giây trước lớp.',
+              ]}
+              expect="Trong vòng 15 giây, phim TỰ DỪNG trên tab app thật - không ai bấm Stop cả. Đây là khoảnh khắc chứng minh hệ thống đang giám sát LIÊN TỤC, không phải chỉ kiểm tra một lần lúc vào.">
+              <Btn busy={busy} step={2} label="Ép rental hết hạn ngay bây giờ" models={['onA0']}
                 onClick={() => run('Ép rental hết hạn', ['onA0'], () => api.demo.expireRental(selectedRentalId), 'rentals')}
                 disabled={!selectedRentalId} variant="danger" />
             </Section>
 
             {/* D.4 */}
-            <Section title="D.4 - Giới hạn vùng địa lý" hint="Thuê Elephant Dream trên UI trước, rồi bấm Play sau mỗi nút dưới để thấy kết quả đổi."
-              message={{ models: ['preC0'], text: 'Conditions (C) (Điều kiện môi trường) - không thuộc S cũng không thuộc O' }}>
-              <Btn busy={busy} label="Xóa vị trí đã lưu (Play sẽ bị chặn preC0)" models={['preC0']}
+            <Section title="D.4 - Giới hạn vùng địa lý"
+              purpose={{ models: ['preC0'], text: 'Cùng 1 người dùng, cùng 1 vai trò, cùng 1 thời điểm - nhưng kết quả khác nhau tùy vị trí. RBAC không có khái niệm "điều kiện môi trường".' }}
+              steps={[
+                'Trên tab app thật: thuê phim Elephant Dream (có giới hạn vùng VN/US/GB).',
+                'Ở panel: bấm "Xóa vị trí đã lưu".',
+                'Trên tab app thật: bấm Play - bị chặn.',
+                'Ở panel: bấm "Chèn lại vị trí VN".',
+                'Trên tab app thật: bấm Play lại - được phép.',
+              ]}
+              expect="Cùng một request Play, cùng một tài khoản - nhưng kết quả đảo ngược hoàn toàn chỉ vì 1 điều kiện môi trường (vị trí) thay đổi.">
+              <Btn busy={busy} step={2} label="Xóa vị trí đã lưu (Play sẽ bị chặn preC0)" models={['preC0']}
                 onClick={() => run('Xóa vị trí', ['preC0'], () => api.demo.deleteLocation())} variant="danger" />
-              <Btn busy={busy} label="Chèn lại vị trí VN (Play sẽ qua preC0)" models={['preC0']}
+              <Btn busy={busy} step={4} label="Chèn lại vị trí VN (Play sẽ qua preC0)" models={['preC0']}
                 onClick={() => run('Chèn vị trí VN', ['preC0'], () => api.geo.save(10.7769, 106.7009))} />
             </Section>
 
             {/* D.5 */}
-            <Section title="D.5 - Offline tự thu hồi" hint="Dùng khi đang đăng nhập premium_demo, đã Download ở tab app thật. Sau khi ép hết hạn, refresh trang /offline ở tab app để thấy onA0 chạy."
-              message={{ models: ['onA0'], text: 'Cùng onA0 nhưng tài nguyên đã rời máy chủ - RBAC không có cơ chế thu hồi sau khi tải về' }}>
-              <Btn busy={busy} label="Ép subscription hết hạn" models={['onA0']}
+            <Section title="D.5 - Offline tự thu hồi"
+              purpose={{ models: ['onA0'], text: 'Ngay cả khi tài nguyên đã RỜI khỏi máy chủ (tải về máy), UCON vẫn thu hồi được quyền dùng. RBAC cấp quyền tải xong là hết trách nhiệm.' }}
+              steps={[
+                'Trên tab app thật (premium_demo): Download 1 phim, xem trang Offline thấy 1 file.',
+                'Ở panel: bấm "Ép subscription hết hạn".',
+                'Trên tab app thật: refresh lại trang Offline.',
+              ]}
+              expect="File offline biến mất khỏi danh sách dù chưa ai xóa nó thủ công - quyền dùng bị thu hồi từ xa dù dữ liệu vẫn còn nằm trên máy người dùng.">
+              <Btn busy={busy} step={2} label="Ép subscription hết hạn" models={['onA0']}
                 onClick={() => run('Ép subscription hết hạn', ['onA0'], () => api.demo.expireSubscription())} variant="danger" />
-              <Btn busy={busy} label="Gia hạn lại subscription (+1 tháng)" models={['preB1', 'preA1']}
+              <Btn busy={busy} label="Gia hạn lại subscription (+1 tháng, dùng khi cần phục hồi trước D.6)" models={['preB1', 'preA1']}
                 onClick={() => run('Gia hạn subscription', ['preB1', 'preA1'], () => api.subscriptions.subscribe(1))} />
             </Section>
 
             {/* D.6 */}
-            <Section title="D.6 - Chặn thiết bị thứ 4" hint="Bấm trước khi mở 4 tab Play trên UI, phòng khi còn sót active_device_count từ lần tập trước."
-              message={{ models: ['preA1'], text: 'Bộ đếm hai chiều, chống chia sẻ tài khoản - RBAC không theo dõi số phiên đồng thời, không chống được chia sẻ tài khoản' }}>
-              <Btn busy={busy} label="Reset session + device counter về 0" models={[]}
+            <Section title="D.6 - Chặn thiết bị thứ 4"
+              purpose={{ models: ['preA1'], text: 'RBAC không đếm được có bao nhiêu phiên đang dùng CÙNG 1 tài khoản - không chống được việc chia sẻ tài khoản cho nhiều người.' }}
+              steps={[
+                'Ở panel: bấm "Reset session + device counter" để dọn sạch trước khi bắt đầu.',
+                'Trên tab app thật: mở 4 tab, Play cùng 1 phim ở cả 4 tab.',
+              ]}
+              expect='3 tab đầu phát được bình thường. Tab thứ 4 bị chặn 403 - dù dùng CÙNG một tài khoản hợp lệ, chỉ vì đã có 3 thiết bị đang hoạt động.'>
+              <Btn busy={busy} step={1} label="Reset session + device counter về 0" models={[]}
                 onClick={() => run('Reset devices', [], () => api.demo.resetDevices())} />
               <Btn busy={busy} label="Rent lại Big Buck Bunny (nếu cần 1 rental mới)" models={['preA0', 'preB1', 'preA1']}
                 onClick={() => run('Rent Big Buck Bunny', ['preA0', 'preB1', 'preA1'], () => api.rentals.rent(MOVIE_BBB), 'rentals')} />
@@ -247,29 +282,51 @@ export default function DemoPanelPage() {
   )
 }
 
-function Section({ title, hint, message, children }: {
-  title: string; hint: string; message?: { models: string[]; text: string }; children?: React.ReactNode
+function Section({ title, purpose, steps, expect, children }: {
+  title: string
+  purpose: { models: string[]; text: string }
+  steps: string[]
+  expect: string
+  children?: React.ReactNode
 }) {
   return (
-    <div className="mt-6 bg-white border border-gray-200 rounded shadow-sm p-4">
-      <h2 className="font-semibold text-gray-900">{title}</h2>
-      <p className="text-sm text-gray-500 mt-1 mb-3">{hint}</p>
-      {message && (
-        <div className="mb-3 bg-indigo-50 border border-indigo-200 rounded p-3">
+    <div className="mt-6 bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+      <div className="px-4 py-2.5 bg-gray-100 border-b border-gray-200">
+        <h2 className="font-bold text-gray-900">{title}</h2>
+      </div>
+      <div className="p-4 space-y-3">
+        {/* Mục đích - đọc trước, để lớp biết đang chờ xem gì */}
+        <div className="border-l-4 border-indigo-400 bg-indigo-50 rounded-r p-3">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            <span className="text-indigo-700 font-semibold text-sm">💡 Thông điệp:</span>
-            {message.models.map(m => <ModelBadge key={m} model={m} />)}
+            <span className="text-xs font-bold text-indigo-600 tracking-wide">🎯 MỤC ĐÍCH</span>
+            {purpose.models.map(m => <ModelBadge key={m} model={m} />)}
           </div>
-          <p className="text-sm text-indigo-900">{message.text}</p>
+          <p className="text-indigo-900 font-medium">{purpose.text}</p>
         </div>
-      )}
-      {children && <div className="flex flex-col gap-2">{children}</div>}
+
+        {/* Cách làm - kịch bản đánh số, gộp cả thao tác UI lẫn nút trong panel */}
+        <div>
+          <span className="text-xs font-bold text-gray-500 tracking-wide">📋 CÁCH LÀM</span>
+          <ol className="mt-1.5 space-y-1 text-gray-700 list-decimal list-outside ml-5">
+            {steps.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+        </div>
+
+        {/* Nút bấm trong panel */}
+        {children && <div className="flex flex-col gap-2 pt-1">{children}</div>}
+
+        {/* Kết quả mong đợi - đọc sau khi bấm, để đối chiếu với thực tế trên tab app thật */}
+        <div className="border-l-4 border-green-400 bg-green-50 rounded-r p-3">
+          <span className="text-xs font-bold text-green-700 tracking-wide">✅ KẾT QUẢ MONG ĐỢI</span>
+          <p className="text-green-900 mt-1">{expect}</p>
+        </div>
+      </div>
     </div>
   )
 }
 
-function Btn({ label, models, onClick, busy, disabled, variant }: {
-  label: string; models: string[]; onClick: () => void; busy: string; disabled?: boolean; variant?: 'danger'
+function Btn({ label, models, onClick, busy, disabled, variant, step }: {
+  label: string; models: string[]; onClick: () => void; busy: string; disabled?: boolean; variant?: 'danger'; step?: number
 }) {
   return (
     <button
@@ -280,7 +337,7 @@ function Btn({ label, models, onClick, busy, disabled, variant }: {
           ? 'bg-red-50 border-red-300 text-red-800 hover:bg-red-100'
           : 'bg-gray-50 border-gray-300 text-gray-800 hover:border-purple-400 hover:bg-purple-50'
       }`}>
-      <span>{label}</span>
+      <span>{step && <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-700 text-white text-xs font-bold mr-2 align-middle">{step}</span>}{label}</span>
       <span className="flex gap-1 shrink-0">
         {models.map(m => <ModelBadge key={m} model={m} />)}
       </span>

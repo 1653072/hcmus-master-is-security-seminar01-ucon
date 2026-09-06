@@ -41,7 +41,7 @@ func Register(c *gin.Context) {
 		`INSERT INTO users (username, password_hash, full_name, gender, role, account_type)
          VALUES ($1, $2, $3, $4, 'user', $5)
          RETURNING user_id, username, password_hash, full_name, gender, role, account_type,
-                   offline_count, copyright_consented_at, offline_consent_at, status, created_at, updated_at`,
+                   offline_count, copyright_consented_at, offline_consented_at, status, created_at, updated_at`,
 		req.Username, hash, req.FullName, req.Gender, req.AccountType,
 	).Scan(
 		&user.UserID, &user.Username, &user.PasswordHash, &user.FullName,
@@ -72,7 +72,7 @@ func Login(c *gin.Context) {
 	var user models.User
 	err := database.Pool.QueryRow(context.Background(),
 		`SELECT user_id, username, password_hash, full_name, gender, role, account_type,
-                offline_count, copyright_consented_at, offline_consent_at, status, created_at, updated_at
+                offline_count, copyright_consented_at, offline_consented_at, status, created_at, updated_at
          FROM users WHERE username = $1`,
 		req.Username,
 	).Scan(
@@ -115,7 +115,7 @@ func GetMe(c *gin.Context) {
 	var user models.User
 	err := database.Pool.QueryRow(context.Background(),
 		`SELECT user_id, username, password_hash, full_name, gender, role, account_type,
-                offline_count, copyright_consented_at, offline_consent_at, status, created_at, updated_at
+                offline_count, copyright_consented_at, offline_consented_at, status, created_at, updated_at
          FROM users WHERE user_id = $1`,
 		jwtClaims.UserID,
 	).Scan(

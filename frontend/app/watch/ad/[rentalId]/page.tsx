@@ -1,15 +1,22 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { api, getToken } from '@/lib/api'
+import { api, getToken, type User } from '@/lib/api'
+import { getCurrentUser } from '@/lib/auth'
+import Navbar from '@/components/Navbar'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 
 export default function AdPlayerPage() {
+  const [user, setUser] = useState<User | null>(null)
   const [watchSeconds, setWatchSeconds] = useState(0)
   const [canProceed, setCanProceed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    getCurrentUser().then(setUser)
+  }, [])
 
   const params = useParams()
   const searchParams = useSearchParams()
@@ -72,7 +79,9 @@ export default function AdPlayerPage() {
   const remaining = Math.max(0, requiredSeconds - watchSeconds)
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-black flex flex-col">
+      <Navbar user={user} />
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-3xl">
         <div className="mb-4 bg-yellow-900/40 border border-yellow-600 rounded px-4 py-3">
           <p className="text-yellow-300 text-sm">
@@ -136,6 +145,7 @@ export default function AdPlayerPage() {
         <div className="mt-6 text-xs text-gray-600 text-center">
           Session token: {token ? token.slice(0, 20) + '...' : 'none'} · Ad ID: {adId.slice(0, 8)}...
         </div>
+      </div>
       </div>
     </div>
   )
