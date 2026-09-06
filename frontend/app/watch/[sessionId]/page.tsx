@@ -1,15 +1,22 @@
 'use client'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { api, getToken } from '@/lib/api'
+import { api, getToken, type User } from '@/lib/api'
+import { getCurrentUser } from '@/lib/auth'
+import Navbar from '@/components/Navbar'
 import { useRouter, useParams } from 'next/navigation'
 
 type SessionStatus = 'active' | 'revoked' | 'ended'
 
 export default function WatchPage() {
+  const [user, setUser] = useState<User | null>(null)
   const [status, setStatus] = useState<SessionStatus>('active')
   const [revokeReason, setRevokeReason] = useState('')
   const [elapsed, setElapsed] = useState(0)
   const [sseConnected, setSseConnected] = useState(false)
+
+  useEffect(() => {
+    getCurrentUser().then(setUser)
+  }, [])
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const sseRef = useRef<EventSource | null>(null)
@@ -78,7 +85,9 @@ export default function WatchPage() {
 
   if (status === 'revoked') {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="min-h-screen bg-black flex flex-col">
+        <Navbar user={user} />
+        <div className="flex-1 flex items-center justify-center p-4">
         <div className="text-center max-w-md">
           <div className="text-6xl mb-4">⛔</div>
           <h2 className="text-2xl font-bold text-red-400 mb-3">Session Revoked</h2>
@@ -99,13 +108,16 @@ export default function WatchPage() {
             Back to Browse
           </button>
         </div>
+        </div>
       </div>
     )
   }
 
   if (status === 'ended') {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-black flex flex-col">
+        <Navbar user={user} />
+        <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <div className="text-5xl mb-4">✓</div>
           <h2 className="text-2xl font-bold mb-3">Session Ended</h2>
@@ -118,12 +130,14 @@ export default function WatchPage() {
             Back to Browse
           </button>
         </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
+      <Navbar user={user} />
       <div className="flex-1 flex items-center justify-center bg-black">
         <div className="w-full max-w-5xl px-4">
           <video
