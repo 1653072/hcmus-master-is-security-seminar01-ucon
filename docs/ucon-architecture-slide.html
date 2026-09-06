@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UCON architecture</title>
+  <style>
+    :root {
+      --ink: #000000;
+      --bg: #ffffff;
+      --line: #111111;
+      --fs: 28px;
+      --fs-h: 32px;
+      --box-pad: 18px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: var(--fs);
+      line-height: 1.35;
+    }
+
+    body {
+      min-width: 1920px;
+      padding: 28px 36px 36px;
+    }
+
+    .defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+    .users {
+      width: 520px;
+      border: 3px solid var(--line);
+      background: var(--bg);
+      padding: 16px 20px;
+      text-align: center;
+      margin-left: 40px;
+    }
+
+    .users h2 { font-size: var(--fs-h); margin-bottom: 8px; }
+    .users p { font-size: var(--fs); }
+
+    .browser-arrow {
+      width: 520px;
+      margin-top: 25px;
+      margin-left: 40px;
+      height: 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 2px;
+    }
+
+    .browser-arrow span { font-size: var(--fs); }
+
+    .main {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0;
+      align-items: start;
+    }
+
+    .docker {
+      border: 3px dashed var(--line);
+      padding: 28px 22px 22px;
+      position: relative;
+      background: var(--bg);
+    }
+
+    .docker-label {
+      position: absolute;
+      top: -18px;
+      left: 20px;
+      background: var(--bg);
+      padding: 0 10px;
+      font-size: var(--fs);
+      font-style: italic;
+      color: var(--ink);
+    }
+
+    .mid {
+      display: grid;
+      grid-template-columns: 1fr 200px 1.35fr;
+      gap: 12px;
+      align-items: stretch;
+      min-height: 520px;
+    }
+
+    .box {
+      border: 3px solid var(--line);
+      background: var(--bg);
+      padding: var(--box-pad);
+    }
+
+    .box h2 {
+      font-size: var(--fs-h);
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .box .meta {
+      font-size: var(--fs);
+      text-align: center;
+      margin-bottom: 14px;
+    }
+
+    .fe ul { list-style: none; padding: 0; }
+
+    .fe li {
+      font-size: var(--fs);
+      padding: 6px 0;
+      border-top: 1px solid #cccccc;
+    }
+
+    .fe li:first-child { border-top: 0; }
+
+    .links {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 40px;
+      padding: 0 4px;
+    }
+
+    .arrow-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .arrow-row span {
+      font-size: var(--fs);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .arr {
+      display: block;
+      overflow: visible;
+    }
+
+    .arr-h { width: 100%; height: 28px; }
+    .arr-v { width: 28px; height: 48px; }
+    .arr-v-sm { width: 28px; height: 36px; }
+
+    .be {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ucon-row {
+      display: grid;
+      grid-template-columns: 1fr 40px 1fr 40px 1fr;
+      gap: 6px;
+      align-items: stretch;
+    }
+
+    .ucon-arrow-slot {
+      display: flex;
+      align-items: center;
+    }
+
+    .ucon-box {
+      border: 3px solid var(--line);
+      background: var(--bg);
+      padding: 12px 8px;
+      text-align: center;
+      min-height: 140px;
+    }
+
+    .ucon-box.pdp { border-width: 4px; }
+
+    .ucon-box h3 {
+      font-size: var(--fs-h);
+      margin-bottom: 6px;
+    }
+
+    .ucon-box p { font-size: var(--fs); }
+
+    .pap-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .static {
+      border: 3px solid var(--line);
+      background: var(--bg);
+      text-align: center;
+      padding: 12px 10px;
+    }
+
+    .static p { font-size: var(--fs); }
+
+    .db-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 10px 0 6px;
+      gap: 4px;
+    }
+
+    .db-arrow span { font-size: var(--fs); }
+
+    .pg {
+      border: 3px solid var(--line);
+      background: var(--bg);
+      padding: 16px 20px;
+      text-align: center;
+    }
+
+    .pg h2 { font-size: var(--fs-h); margin-bottom: 6px; }
+    .pg p { font-size: var(--fs); margin-top: 6px; }
+
+    .geo-side {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 210px;
+      padding-left: 4px;
+    }
+
+    .https-arrow {
+      width: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .https-arrow span {
+      font-size: var(--fs);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .geo {
+      width: 280px;
+      border: 3px dashed var(--line);
+      background: var(--bg);
+      padding: 20px 14px;
+      text-align: center;
+    }
+
+    .geo h2 { font-size: var(--fs-h); margin-bottom: 10px; }
+    .geo p { font-size: var(--fs); margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <svg class="defs" aria-hidden="true">
+    <defs>
+      <marker id="ah" viewBox="0 0 12 10" markerWidth="11" markerHeight="9" refX="11" refY="5" orient="auto" markerUnits="strokeWidth">
+        <path d="M0.6,0.8 C0.6,0.8 2.2,4.2 2.2,5 C2.2,5.8 0.6,9.2 0.6,9.2 L11.2,5 Z" fill="#000"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="users">
+    <h2>Users / Browser</h2>
+    <p>basic_user · premium_user</p>
+    <p>admin</p>
+  </div>
+
+  <div class="browser-arrow">
+    <span>browser</span>
+    <svg class="arr arr-v" viewBox="0 0 28 48" preserveAspectRatio="none">
+      <line x1="14" y1="2" x2="14" y2="38" stroke="#000" stroke-width="2.6" stroke-linecap="round" marker-end="url(#ah)"/>
+    </svg>
+  </div>
+
+  <div class="main">
+    <div class="docker">
+      <span class="docker-label">Docker Compose network</span>
+
+      <div class="mid">
+        <div class="box fe">
+          <h2>Next.js Frontend</h2>
+          <p class="meta">App Router · Tailwind CSS · :3000</p>
+          <ul>
+            <li>navigator.geolocation (preC0)</li>
+            <li>EventSource SSE (onA0 revoke)</li>
+            <li>Ad player 15 giây (preB0)</li>
+            <li>JWT ?token= cho video stream</li>
+            <li>Pages: home / movie / watch</li>
+          </ul>
+        </div>
+
+        <div class="links">
+          <div class="arrow-row">
+            <span>REST / JSON</span>
+            <svg class="arr arr-h" viewBox="0 0 180 28" preserveAspectRatio="none">
+              <line x1="4" y1="14" x2="162" y2="14" stroke="#000" stroke-width="2.6" stroke-linecap="round" marker-end="url(#ah)"/>
+            </svg>
+          </div>
+          <div class="arrow-row">
+            <span>SSE (onA0)</span>
+            <svg class="arr arr-h" viewBox="0 0 180 28" preserveAspectRatio="none">
+              <line x1="176" y1="14" x2="18" y2="14" stroke="#000" stroke-width="2.6" stroke-dasharray="9 7" stroke-linecap="round" marker-end="url(#ah)"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="box be">
+          <h2>Go Backend - Gin</h2>
+          <p class="meta">:8080 · JWT auth · bcrypt · HTTP Range</p>
+
+          <div class="ucon-row">
+            <div class="ucon-box">
+              <h3>PEP</h3>
+              <p>Gin Router /</p>
+              <p>Middleware</p>
+            </div>
+            <div class="ucon-arrow-slot">
+              <svg class="arr arr-h" viewBox="0 0 40 28" preserveAspectRatio="none">
+                <line x1="2" y1="14" x2="28" y2="14" stroke="#000" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ah)"/>
+              </svg>
+            </div>
+            <div class="ucon-box pdp">
+              <h3>PDP</h3>
+              <p>ucon/engine.go</p>
+              <p>preA/B/C · onA</p>
+            </div>
+            <div class="ucon-arrow-slot">
+              <svg class="arr arr-h" viewBox="0 0 40 28" preserveAspectRatio="none">
+                <line x1="2" y1="14" x2="28" y2="14" stroke="#000" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ah)"/>
+              </svg>
+            </div>
+            <div class="ucon-box">
+              <h3>PIP</h3>
+              <p>PostgreSQL</p>
+              <p>Pool (pgx/v5)</p>
+            </div>
+          </div>
+          <div class="pap-wrap">
+            <svg class="arr arr-v-sm" viewBox="0 0 28 36" preserveAspectRatio="none">
+              <line x1="14" y1="32" x2="14" y2="10" stroke="#000" stroke-width="2.4" stroke-linecap="round" marker-end="url(#ah)"/>
+            </svg>
+            <div class="ucon-box" style="width:42%">
+              <h3>PAP</h3>
+              <p>/api/admin/*</p>
+            </div>
+          </div>
+
+          <div class="static">
+            <p>static/videos/*.mp4 · static/ads/*.mp4</p>
+            <p>HTTP Range streaming</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="db-arrow">
+        <span>pgx/v5</span>
+        <svg class="arr arr-v" viewBox="0 0 28 48" preserveAspectRatio="none">
+          <line x1="14" y1="2" x2="14" y2="38" stroke="#000" stroke-width="2.6" stroke-linecap="round" marker-end="url(#ah)"/>
+        </svg>
+      </div>
+
+      <div class="pg">
+        <h2>PostgreSQL 16</h2>
+        <p>:5432 · 12 tables</p>
+        <p>users · movies · rentals · subscriptions · sessions · watch_histories</p>
+        <p>user_locations · payment_transactions · ads · ads_histories · offline_downloads · audit_logs</p>
+      </div>
+    </div>
+
+    <div class="geo-side">
+      <div class="https-arrow">
+        <span>HTTPS preC0</span>
+        <svg class="arr arr-h" viewBox="0 0 220 28" preserveAspectRatio="none">
+          <line x1="4" y1="14" x2="198" y2="14" stroke="#000" stroke-width="2.6" stroke-dasharray="9 7" stroke-linecap="round" marker-end="url(#ah)"/>
+        </svg>
+      </div>
+      <aside class="geo">
+        <h2>BigDataCloud API</h2>
+        <p>api-bdc.io</p>
+        <p>Reverse Geocode</p>
+        <p>(external · preC0)</p>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>
