@@ -70,6 +70,16 @@ func main() {
 		auth.GET("/offline", handlers.ListOfflineDownloads)
 		auth.POST("/offline/download/:movie_id", handlers.DownloadMovie)
 		auth.DELETE("/offline/:download_id", handlers.DeleteDownload)
+		auth.GET("/offline/:download_id/file", handlers.ServeOfflineFile)        // one-time byte fetch, cached client-side (IndexedDB)
+		auth.GET("/offline/:download_id/verify", handlers.VerifyOfflineLicense) // onA0 license check before every offline playback
+		auth.GET("/offline/:download_id/encrypted", handlers.ServeOfflineFileEncrypted) // D.5.1: ciphertext, safe to cache regardless of status
+		auth.GET("/offline/:download_id/key", handlers.VerifyOfflineKey)               // D.5.1: onA0-gated decryption key (not just a boolean)
+
+		// D.5.2 - offline-capable signed license (separate top-level group so its
+		// wildcard :download_id segment never sits next to the literal "download"
+		// segment used by POST /offline/download/:movie_id above)
+		auth.GET("/license/public-key", handlers.GetLicensePublicKey)
+		auth.POST("/license/:download_id", handlers.IssueOfflineLicense)
 
 		// Watch history
 		auth.GET("/history", handlers.ListHistory)
@@ -92,9 +102,11 @@ func main() {
 		{
 			demo.POST("/expire-rental", handlers.DemoExpireRental)
 			demo.POST("/expire-subscription", handlers.DemoExpireSubscription)
+			demo.GET("/location", handlers.DemoLocationStatus)
 			demo.DELETE("/location", handlers.DemoDeleteLocation)
 			demo.POST("/reset-devices", handlers.DemoResetDevices)
 			demo.POST("/reset-all", handlers.DemoResetAll)
+			demo.GET("/ad-obligation-status/:rental_id", handlers.DemoAdObligationStatus)
 		}
 	}
 

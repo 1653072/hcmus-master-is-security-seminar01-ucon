@@ -13,6 +13,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -76,6 +77,29 @@ func DemoExpireSubscription(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "subscription_expiry set to the past — onA0 will revoke on next check"})
 }
 
+// DemoLocationStatus is a READ-ONLY view of the caller's latest user_locations
+// row, so the Demo Panel can show a real before/after diff around D.4's
+// "Xóa vị trí" / "Chèn vị trí" buttons instead of only a client-side flag.
+// Mirrors GetUserCountryCode's own query (engine.go) - the same value preC0
+// actually reads.
+func DemoLocationStatus(c *gin.Context) {
+	claims := middleware.GetClaims(c)
+	userID, _ := uuid.Parse(claims.UserID)
+
+	var countryCode *string
+	var capturedAt *time.Time
+	_ = database.Pool.QueryRow(context.Background(),
+		`SELECT country_code, captured_at FROM user_locations
+         WHERE user_id = $1 ORDER BY captured_at DESC LIMIT 1`,
+		userID,
+	).Scan(&countryCode, &capturedAt)
+
+	c.JSON(http.StatusOK, gin.H{
+		"country_code": countryCode,
+		"captured_at":  capturedAt,
+	})
+}
+
 // DemoDeleteLocation clears the caller's saved location(s), standing in for the
 // "DELETE FROM user_locations WHERE ..." step used to force a preC0 block in D.4.
 func DemoDeleteLocation(c *gin.Context) {
@@ -119,6 +143,69 @@ func DemoResetDevices(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "all active sessions closed, active_device_count reset to 0"})
+}
+
+// DemoAdObligationStatus is a READ-ONLY debug view into ads_histories, so a
+// presenter can prove that D.2's "GIAN LẬN" (cheat) attempt is NOT a no-op:
+// CompleteAd (see handlers/ads.go) inserts a row into ads_histories even when
+// the obligation is rejected (completed=false). What makes preB0 the "no
+// attribute update" obligation model (vs preB1, which sets a durable
+// attribute like users.copyright_consented_at once and reuses it forever) is
+// that PreB0_AdObligation never consults a persisted attribute — it re-derives
+// "is the obligation satisfied right now" from raw ads_histories rows within a
+// rolling 5-minute window on every single check. This endpoint exposes that
+// same query plus the latest row, so both halves of the distinction (a DB
+// write happens, but no reusable attribute exists) are visible in one call.
+func DemoAdObligationStatus(c *gin.Context) {
+	claims := middleware.GetClaims(c)
+	userID, _ := uuid.Parse(claims.UserID)
+
+	rentalID, err := uuid.Parse(c.Param("rental_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rental id"})
+		return
+	}
+
+	ctx := context.Background()
+
+	var totalAttempts int
+	if err := database.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM ads_histories WHERE user_id = $1 AND rental_id = $2`,
+		userID, rentalID,
+	).Scan(&totalAttempts); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count ads_histories"})
+		return
+	}
+
+	// Mirrors PreB0_AdObligation's own query exactly (engine.go) - this is the
+	// live predicate preB0 evaluates, not a cached/stored attribute.
+	var satisfiedWithin5Min bool
+	if err := database.Pool.QueryRow(ctx,
+		`SELECT COUNT(*) > 0 FROM ads_histories
+         WHERE user_id = $1 AND rental_id = $2 AND completed = TRUE
+         AND created_at > NOW() - INTERVAL '5 minutes'`,
+		userID, rentalID,
+	).Scan(&satisfiedWithin5Min); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to check obligation window"})
+		return
+	}
+
+	var latestWatchDuration *int
+	var latestCompleted *bool
+	var latestCreatedAt *time.Time
+	_ = database.Pool.QueryRow(ctx,
+		`SELECT watch_duration_seconds, completed, created_at FROM ads_histories
+         WHERE user_id = $1 AND rental_id = $2 ORDER BY created_at DESC LIMIT 1`,
+		userID, rentalID,
+	).Scan(&latestWatchDuration, &latestCompleted, &latestCreatedAt)
+
+	c.JSON(http.StatusOK, gin.H{
+		"total_attempts_all_time":        totalAttempts,
+		"satisfied_within_5min":          satisfiedWithin5Min,
+		"latest_watch_duration_seconds":  latestWatchDuration,
+		"latest_completed":               latestCompleted,
+		"latest_created_at":              latestCreatedAt,
+	})
 }
 
 // DemoResetAll wipes every rehearsal side-effect and puts the whole demo dataset

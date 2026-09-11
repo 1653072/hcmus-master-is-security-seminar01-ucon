@@ -110,6 +110,25 @@ export const api = {
       request<{ download: OfflineDownload }>(`/api/offline/download/${movie_id}`, { method: 'POST' }),
     delete: (download_id: string) =>
       request<{ message: string }>(`/api/offline/${download_id}`, { method: 'DELETE' }),
+    // Bytes thật của phim - gọi 1 LẦN lúc "download" để cache vào IndexedDB.
+    // Cần Authorization header nên phải fetch thủ công, không dùng làm href trực tiếp.
+    fileUrl: (download_id: string) => `${API_URL}/api/offline/${download_id}/file`,
+    // "Xin license" trước mỗi lần phát từ file đã cache local (onA0) - độc lập
+    // với việc file có còn tồn tại trên máy hay không.
+    verify: (download_id: string) =>
+      request<{ valid: boolean; error?: string }>(`/api/offline/${download_id}/verify`),
+    // D.5.1 - tầng thực thi bằng mã hoá: bytes cache là CIPHERTEXT (vô dụng nếu
+    // không có key), key chỉ được cấp khi onA0 pass, và không bao giờ được cache.
+    encryptedFileUrl: (download_id: string) => `${API_URL}/api/offline/${download_id}/encrypted`,
+    key: (download_id: string) =>
+      request<{ valid: boolean; key?: string; iv?: string; error?: string }>(`/api/offline/${download_id}/key`),
+    // D.5.2 - license ký (ECDSA) cấp 1 LẦN, xác minh + giải mã hoàn toàn cục bộ
+    // sau đó (xem lib/licenseCrypto.ts) - không cần mạng lúc Play.
+    licensePublicKey: () => request<{ public_key: string }>('/api/license/public-key'),
+    requestLicense: (download_id: string, device_id: string, ttl_seconds: number) =>
+      request<{ license: OfflineLicense }>(`/api/license/${download_id}`, {
+        method: 'POST', body: JSON.stringify({ device_id, ttl_seconds }),
+      }),
   },
 
   history: {
@@ -153,6 +172,10 @@ export const api = {
       request<{ message: string }>('/api/demo/reset-devices', { method: 'POST' }),
     resetAll: () =>
       request<{ message: string }>('/api/demo/reset-all', { method: 'POST' }),
+    adObligationStatus: (rental_id: string) =>
+      request<AdObligationStatus>('/api/demo/ad-obligation-status/' + rental_id),
+    locationStatus: () =>
+      request<LocationStatus>('/api/demo/location'),
   },
 }
 
@@ -228,6 +251,25 @@ export interface AdObligation {
   ad_duration_seconds: number
 }
 
+// D.2 evidence - mirrors what PreB0_AdObligation actually queries (a rolling
+// 5-minute window over raw ads_histories rows), so the panel can show that
+// preB0's "0" (no attribute update) means no durable attribute is consulted -
+// not that no database write happens (CompleteAd always inserts a row).
+export interface AdObligationStatus {
+  total_attempts_all_time: number
+  satisfied_within_5min: boolean
+  latest_watch_duration_seconds: number | null
+  latest_completed: boolean | null
+  latest_created_at: string | null
+}
+
+// D.4 evidence - the caller's latest user_locations row (or null country_code
+// if none exists), the same value preC0/GetUserCountryCode actually reads.
+export interface LocationStatus {
+  country_code: string | null
+  captured_at: string | null
+}
+
 export interface OfflineDownload {
   download_id: string
   user_id: string
@@ -241,6 +283,17 @@ export interface OfflineDownloadWithMovie extends OfflineDownload {
   movie_title: string
   movie_genre: string
   movie_duration_minutes: number
+}
+
+// D.5.2 - signed offline license. Fields are plaintext/readable on purpose
+// (tampering any of them invalidates `signature`, verified in lib/licenseCrypto.ts).
+export interface OfflineLicense {
+  download_id: string
+  movie_key: string
+  movie_iv: string
+  device_id: string
+  expires_at: number // unix seconds
+  signature: string
 }
 
 export interface WatchHistory {
